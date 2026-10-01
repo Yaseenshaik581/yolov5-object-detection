@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soft Gripper Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}" defer></script>
+    <style>
+        /* (your same CSS here...) */
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h4>Dashboard</h4>
+        <a href="#" onclick="navigateTo('home')">Home</a>
+        <button class="btn btn-danger emergency" onclick="sendEmergency()">EMERGENCY STOP</button>
+    </div>
+
+    <div class="container py-4" style="margin-left: 220px;">
+        <h2 class="text-white mb-4">Soft Robotic Gripper Dashboard</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dashboard-card">
+                    <h5 class="text-info">Live Camera Feed</h5>
+                    <div class="bg-dark text-muted text-center" style="height: 200px;">
+                        <img src="/video_feed" alt="Live Camera" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                </div>
+                <div class="dashboard-card" style="min-height: 120px;">
+                    <h6 class="text-secondary">Captain's Journal</h6>
+                    <div id="captains-journal" class="bg-dark text-white px-2 py-1 rounded" style="font-size: 0.9rem; height: 60px; overflow-y: auto;">
+                        System initialized...
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="dashboard-card status-card">
+                    <h5 class="text-center text-uppercase text-info">STATUS</h5>
+                    <p>Detected Object: <strong id="detected-object">{{ state['detected_object'] }}</strong></p>
+
+                    <p>Material Type: <strong id="material-type">
+                        {% if state['material_type'] in ['Soft','Medium','Hard'] %}
+                            {{ state['material_type'] }}
+                        {% else %}
+                            Not Assigned Yet
+                        {% endif %}
+                    </strong></p>
+
+                    <p>Confidence: <strong id="confidence">{{ state['confidence'] }}</strong></p>
+
+                    <p>Place Position: <strong>
+                        {% if state['place_position'] in ['A','B','C'] %}
+                            {{ state['place_position'] }}
+                        {% else %}
+                            Not Assigned Yet
+                        {% endif %}
+                    </strong></p>
+
+                    <p>Pressure: <strong id="sensor-pressure">{{ state['pressure'] }} bar</strong></p>
+                    <p>Weight: <strong id="sensor-weight">{{ state['weight'] }} g</strong></p>
+
+                    <p>
+                        Flex 01: <strong id="sensor-flex01">{{ state['flex_01'] }}</strong>&nbsp;&nbsp;
+                        Flex 02: <strong id="sensor-flex02">{{ state['flex_02'] }}</strong>&nbsp;&nbsp;
+                        Flex 03: <strong id="sensor-flex03">{{ state['flex_03'] }}</strong>&nbsp;&nbsp;
+                        Flex 04: <strong id="sensor-flex04">{{ state['flex_04'] }}</strong>
+                    </p>
+
+                    <p>Status: <strong>{{ state['gripper_status'] }}</strong></p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="dashboard-card">
+                    <h5 class="text-info">Gripper Map</h5>
+                    <div id="gripper-map">
+                        <!-- Your gripper map content -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="row mt-4">
+            <!-- (charts here, same as before...) -->
+        </div>
+    </div>
+
+    <!-- ======================== JavaScript ======================== -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // (your existing chart + journal logging + gauges code...)
+
+        function updateGauge(chart, newValue, label) {
+            chart.data.datasets[0].data = [newValue, 100 - newValue];
+            chart.options.plugins.title.text = `${label}: ${newValue}%`;
+            chart.update();
+        }
+
+        function logToJournal(message) {
+            const journal = document.getElementById("captains-journal");
+            const timestamp = new Date().toLocaleTimeString();
+            journal.innerHTML = `[${timestamp}] ${message}<br>` + journal.innerHTML;
+        }
+
+        logToJournal("Emergency STOP activated!");
+        logToJournal("Object detection in progress...");
+
+        setInterval(() => {
+            fetch('/live_sensors')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('sensor-weight').textContent = `${data.weight} g`;
+                    document.getElementById('sensor-pressure').textContent = `${data.pressure} bar`;
+                    document.getElementById('sensor-flex01').textContent = data.flex_01;
+                    document.getElementById('sensor-flex02').textContent = data.flex_02;
+                    document.getElementById('sensor-flex03').textContent = data.flex_03;
+                    document.getElementById('sensor-flex04').textContent = data.flex_04;
+
+                    let pressurePercent = Math.min((data.pressure / 5) * 100, 100);
+                    let weightPercent = Math.min((data.weight / 1000) * 100, 100);
+                    let flexSensors = ['flex_01', 'flex_02', 'flex_03', 'flex_04'];
+                    let activeFlexCount = flexSensors.filter(id => data[id] === "ON").length;
+                    let flexPercent = activeFlexCount * 25;
+
+                    updateGauge(pressureGauge, pressurePercent, 'Pressure');
+                    updateGauge(flexGauge, flexPercent, 'Flex');
+                    updateGauge(weightGauge, weightPercent, 'Weight');
+                });
+        }, 3000);
+
+        // ✅ NEW: LIVE UPDATE from state.json every 2s
+        setInterval(() => {
+            fetch('/state.json')
+                .then(res => res.json())
+                .then(state => {
+                    document.getElementById('detected-object').textContent = state.object || 'None';
+                    document.getElementById('material-type').textContent = state.material || 'Unknown';
+                    document.getElementById('confidence').textContent = (state.confidence ?? 0.0) + ' %';
+                })
+                .catch(err => console.error("state.json fetch error:", err));
+        }, 2000);
+
+        window.sendEmergency = function () {
+            if (confirm("Are you sure you want to trigger EMERGENCY STOP?")) {
+                fetch('/emergency', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => alert("✅ Emergency STOP signal sent."))
+                    .catch(err => alert("❌ Failed to send Emergency STOP."));
+            }
+        };
+    });
+    </script>
+</body>
+</html>

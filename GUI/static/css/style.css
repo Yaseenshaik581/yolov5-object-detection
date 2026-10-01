@@ -1,0 +1,149 @@
+/* === Global Styles === */
+body {
+    background-color: #0b1120;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #f8fafc;
+}
+
+/* === Card Styling === */
+.dashboard-card {
+    background-color: #1e293b;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    margin-bottom: 1rem;
+}
+
+/* === Button Custom Styles === */
+.btn-type {
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+    background-color: transparent;
+    margin: 0 4px 4px 0;
+    transition: 0.2s ease;
+}
+
+.btn-type:hover {
+    background-color: #1e40af;
+    color: white;
+}
+
+.btn-type.active {
+    background-color: #3b82f6 !important;
+    color: white !important;
+    pointer-events: none;
+}
+
+/* === Floating Action Button (FAB) === */
+.fab {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.fab:hover {
+    background-color: #1d4ed8;
+}
+
+/* === FAB Menu === */
+#fab-menu {
+    z-index: 999;
+}
+
+/* === Gripper Map === */
+#gripper-map {
+    position: relative;
+    height: 300px;
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #334155;
+    text-align: center;
+    line-height: 30px;
+    font-weight: bold;
+    color: #e2e8f0;
+    position: absolute;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+#dot-H { top: 135px; left: 10px; background-color: #10b981; animation: pulse 2s infinite; cursor: grab; }
+#dot-A { top: 20px; right: 20px; }
+#dot-P { top: 135px; right: 20px; }
+#dot-B { top: 250px; right: 20px; }
+
+.line {
+    height: 2px;
+    background-color: #334155;
+    position: absolute;
+    border-radius: 1px;
+    transition: background-color 0.3s ease;
+    display: block;
+}
+
+#line-HA {
+    top: 150px;
+    left: 40px;
+    width: 310px;
+    transform: rotate(-20deg);
+    transform-origin: left center;
+}
+
+#line-HP {
+    top: 150px;
+    left: 40px;
+    width: 290px;
+    transform: rotate(0deg);
+    transform-origin: left center;
+}
+
+#line-HB {
+    top: 150px;
+    left: 40px;
+    width: 310px;
+    transform: rotate(20deg);
+    transform-origin: left center;
+}
+
+.active-dot {
+    background-color: #10b981 !important;
+}
+
+.active-line {
+    background-color: #10b981 !important;
+}
+
+/* === Blinking Animation === */
+.blinking {
+    animation: blink 1.5s ease-in-out;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soft Gripper Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}" defer></script>
+    <script>
+        const MODE = "{{ state['mode'] }}";
+        const PLACE_POSITION = "{{ state['place_position'] }}";
+        const MATERIAL_TYPE = "{{ state['material_type'] }}";
+    </script>
+    <style>
+        .sidebar { position: fixed; top: 0; left: 0; width: 200px; height: 100vh; background-color: #111827; color: #e2e8f0; padding: 20px; }
+        .sidebar h4 { color: #0ea5e9; margin-bottom: 1rem; }
+        .sidebar a { display: block; color: #e2e8f0; text-decoration: none; margin-bottom: 0.75rem; }
+        .sidebar .emergency { position: absolute; bottom: 20px; left: 20px; width: 160px; }
+        .draggable { cursor: grab; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16,185,129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16,185,129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129, 0); } }
+        .chart-container { width: 100%; height: 100%; min-height: 250px; }
+        .status-card p { text-align: center; }
+        .dashboard-card canvas { max-height: 240px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h4>Dashboard</h4>
+        <a href="#" onclick="navigateTo('home')">Home</a>
+        <button class="btn btn-danger emergency" onclick="sendEmergency()">EMERGENCY STOP</button>
+    </div>
+
+    <div class="container py-4" style="margin-left: 220px;">
+        <h2 class="text-white mb-4">Soft Robotic Gripper Dashboard</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dashboard-card">
+                    <h5 class="text-info">Live Camera Feed</h5>
+                    <div class="bg-dark text-muted text-center" style="height: 200px;">
+                        <img src="/video_feed" alt="Live Camera" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                </div>
+                <div class="dashboard-card" style="min-height: 120px;">
+                    <h6 class="text-secondary">Captain's Journal</h6>
+                    <div id="captains-journal" class="bg-dark text-white px-2 py-1 rounded" style="font-size: 0.9rem; height: 60px; overflow-y: auto;">
+                        System initialized...
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+            <div class="dashboard-card status-card">
+                <h5 class="text-center text-uppercase text-info">STATUS</h5>
+
+                <p>Detected Object: <strong id="detected-object">{{ state['object'] }}</strong></p>
+                <p>Material Type: <strong id="material-type">{{ state['material'] }}</strong></p>
+                <p>Place Position: <strong>Not Assigned Yet</strong></p>
+
+                <!-- These two are now driven by state.json via updateStatus() -->
+                <p>Pressure: <strong id="sensor-pressure">0.0 bar</strong></p>
+                <p>Weight: <strong id="sensor-weight">0 g</strong></p>
+
+                <p>
+                    Flex 01: <strong id="sensor-flex01">OFF</strong>&nbsp;&nbsp;
+                    Flex 02: <strong id="sensor-flex02">OFF</strong>&nbsp;&nbsp;
+                    Flex 03: <strong id="sensor-flex03">OFF</strong>&nbsp;&nbsp;
+                    Flex 04: <strong id="sensor-flex04">OFF</strong>
+                </p>
+
+                <p>Status: <strong>Idle</strong></p>
+
+                <div class="mt-3 text-center">
+                    <form method="POST" action="/set_mode/AUTO" class="d-inline">
+                        <button type="submit" class="btn btn-sm" style="visibility: hidden;">Auto</button>
+                    </form>
+                    <form method="POST" action="/set_mode/MANUAL" class="d-inline">
+                        <button type="submit" class="btn btn-sm" style="visibility: hidden;">Manual</button>
+                    </form>
+                </div>
+            </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="dashboard-card">
+                    <h5 class="text-info">Gripper Map</h5>
+                    <div id="gripper-map">
+                        <div class="dot" id="dot-H" draggable="true">H</div>
+                        <div class="dot" id="dot-A">A</div>
+                        <div class="dot" id="dot-P">P</div>
+                        <div class="dot" id="dot-B">B</div>
+                        <div class="line" id="line-HA"></div>
+                        <div class="line" id="line-HP"></div>
+                        <div class="line" id="line-HB"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-lg-6 mb-3">
+                <div class="dashboard-card chart-container">
+                    <h5>Pressure vs Weight</h5>
+                    <canvas id="pressureWeightChart"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="dashboard-card chart-container">
+                    <h5>Pressure Over Time</h5>
+                    <canvas id="linePressureTime"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="dashboard-card chart-container">
+                    <h5>Pressure</h5>
+                    <canvas id="gaugePressure"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="dashboard-card chart-container">
+                    <h5>Flex</h5>
+                    <canvas id="gaugeFlex"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="dashboard-card chart-container">
+                    <h5>Weight</h5>
+                    <canvas id="gaugeWeight"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const pressureWeightData = {
+            labels: [1, 2, 3, 4, 5, 6],
+            datasets: [{
+                label: 'Weight (g)',
+                data: [300, 600, 800, 1200, 1600, 1900],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                fill: true,
+                tension: 0.4
+            }]
+        };
+
+        const pressureWeightOptions = {
+            scales: {
+                x: { title: { display: true, text: 'Pressure (bar)', color: '#fff' }, min: 0, max: 6, ticks: { stepSize: 1, color: '#cbd5e1' }, grid: { color: '#1e293b' } },
+                y: { title: { display: true, text: 'Weight (g)', color: '#fff' }, min: 0, max: 2000, ticks: { stepSize: 500, color: '#cbd5e1' }, grid: { color: '#1e293b' } }
+            },
+            plugins: { legend: { display: false } }
+        };
+
+        new Chart(document.getElementById('pressureWeightChart'), {
+            type: 'line',
+            data: pressureWeightData,
+            options: pressureWeightOptions
+        });
+
+        const timeLabels = [];
+        const timeValues = [];
+
+        const pressureTimeChart = new Chart(document.getElementById('linePressureTime'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Pressure (bar)',
+                    data: timeValues,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                scales: {
+                    x: { title: { display: true, text: 'Time (s)', color: '#fff' }, ticks: { color: '#cbd5e1' }, grid: { color: '#1e293b' } },
+                    y: { title: { display: true, text: 'Pressure (bar)', color: '#fff' }, min: 0, max: 6, ticks: { stepSize: 1, color: '#cbd5e1' }, grid: { color: '#1e293b' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        let currentTime = 0;
+        const maxTime = 300;
+        const interval = 5000; // 5 seconds
+
+        function updateLineChart() {
+            if (currentTime > maxTime) return;
+            const newPressure = (Math.random() * 6).toFixed(2);
+            timeLabels.push(currentTime);
+            timeValues.push(newPressure);
+            if (timeLabels.length > 6) { timeLabels.shift(); timeValues.shift(); }
+            currentTime += 5;
+            pressureTimeChart.update();
+        }
+        setInterval(updateLineChart, interval);
+
+        function renderGauge(id, value, label, color) {
+            return new Chart(document.getElementById(id), {
+                type: 'doughnut',
+                data: { labels: [label, 'Remaining'], datasets: [{ data: [value, 100 - value], backgroundColor: [color, '#1f2937'], borderWidth: 0 }] },
+                options: {
+                    cutout: '80%',
+                    plugins: { legend: { display: false }, tooltip: { enabled: false }, title: { display: true, text: `${label}: ${value}%`, color: '#fff', font: { size: 16 } } }
+                }
+            });
+        }
+
+        let pressureGauge = renderGauge('gaugePressure', 65, 'Pressure', '#3b82f6');
+        let flexGauge = renderGauge('gaugeFlex', 32, 'Flex', '#f43f5e');
+        let weightGauge = renderGauge('gaugeWeight', 45, 'Weight', '#10b981');
+
+        function updateGauge(chart, newValue, label) {
+            chart.data.datasets[0].data = [newValue, 100 - newValue];
+            chart.options.plugins.title.text = `${label}: ${newValue}%`;
+            chart.update();
+        }
+
+        function logToJournal(message) {
+            const journal = document.getElementById("captains-journal");
+            const timestamp = new Date().toLocaleTimeString();
+            journal.innerHTML = `[${timestamp}] ${message}<br>` + journal.innerHTML;
+        }
+        logToJournal("Emergency STOP activated!");
+        logToJournal("Object detection in progress...");
+
+        // Drive GAUGES + FLEX from /live_sensors (do NOT overwrite status values)
+        setInterval(() => {
+            fetch('/live_sensors')
+                .then(response => response.json())
+                .then(data => {
+                    // Flex states
+                    document.getElementById('sensor-flex01').textContent = data.flex_01;
+                    document.getElementById('sensor-flex02').textContent = data.flex_02;
+                    document.getElementById('sensor-flex03').textContent = data.flex_03;
+                    document.getElementById('sensor-flex04').textContent = data.flex_04;
+
+                    // Gauge percentages
+                    let pressurePercent = Math.min((data.pressure / 5) * 100, 100);
+                    let weightPercent = Math.min((data.weight / 1000) * 100, 100);
+                    let activeFlexCount = ['flex_01', 'flex_02', 'flex_03', 'flex_04'].filter(id => data[id] === "ON").length;
+                    let flexPercent = activeFlexCount * 25;
+
+                    updateGauge(pressureGauge, Math.round(pressurePercent), 'Pressure');
+                    updateGauge(flexGauge, Math.round(flexPercent), 'Flex');
+                    updateGauge(weightGauge, Math.round(weightPercent), 'Weight');
+                });
+        }, 3000);
+
+        // Emergency button handler
+        window.sendEmergency = function() {
+            if (confirm("Are you sure you want to trigger EMERGENCY STOP?")) {
+                fetch('/emergency', { method: 'POST' })
+                    .then(r => r.json())
+                    .then(() => alert("✅ Emergency STOP signal sent."))
+                    .catch(() => alert("❌ Failed to send Emergency STOP."));
+            }
+        };
+    });
+    </script>
+
+    <!-- Pull STATUS values (object/material/weight/pressure) from state.json -->
+    <script>
+        function updateStatus() {
+            fetch('/state.json')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('detected-object').textContent = data.object || 'Not Assigned Yet';
+                    document.getElementById('material-type').textContent  = data.material || 'Not Assigned Yet';
+                    // These come from your fixed lookup (state.json)
+                    const w = (data.weight_g ?? 0);
+                    const p = (data.pressure_bar ?? 0);
+                    document.getElementById('sensor-weight').textContent   = `${w} g`;
+                    document.getElementById('sensor-pressure').textContent = `${p} bar`;
+                })
+                .catch(error => console.error('Error updating status:', error));
+        }
+        // Update every 2 seconds
+        setInterval(updateStatus, 2000);
+        // also run once on load
+        updateStatus();
+    </script>
+</body>
+</html>
