@@ -1,7 +1,7 @@
 {
-    "object": "Medical beaker",
-    "material": "Fragile",
-    "confidence": 0.46,
-    "weight_g": 79,
-    "pressure_bar": 0.47
+  "object": "Medical beaker",
+  "material": "Fragile",
+  "confidence": 0.46,
+  "weight_g": 79,
+  "pressure_bar": 0.47
 }
