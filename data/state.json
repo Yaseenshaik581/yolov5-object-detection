@@ -1,8 +1,8 @@
 {
-    "detected_object": "Medical beaker",
-    "material_type": "Fragile",
-    "confidence": 0.73,
-    "place_position": "Not Assigned",
-    "mode": "AUTO",
-    "gripper_status": "Idle"
+  "detected_object": "Medical beaker",
+  "material_type": "Fragile",
+  "confidence": 0.73,
+  "place_position": "Not Assigned",
+  "mode": "AUTO",
+  "gripper_status": "Idle"
 }
